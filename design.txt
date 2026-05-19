@@ -1,0 +1,48 @@
+- API already gives filtering
+- one resource 
+- API client search_tools(params), get_trilas(ncp_id) 
+- Agent Loop: user message -> LLM decides which tool to call -> execute
+-> reuslts back -> LLM answers to the person
+- Normalizer: flatten the data that we extradct from API; structures it
+to a common deniomitor (same format)
+- Frontend UI: chat function where user can send messages -> agenbt replies back
+
+Extension: what happends if we get very large datasets
+How do we show huge outputs to people: as the answer might be huge
+Tool streaming to the Frontend
+Proper error handling - what to show/raise to user
+UI to give the option to access teh full set instead of selected trimmed version
+If oyu came back to chat see previous history 
+If agent is thinking and we refresh, the refresh should not stop 
+For every clinical trial, company website should be checked amd cross-reference on the internet
+to check it is up to date. API result older than real progress
+How do you check the validity - trade offs and judgement here
+One user key - maybe multiple
+
+Requirements:
+streaming + tool streaming
+proper error handling for tool calls - pick something sensible to show to the LLM/user - decide the best retry/display behaviour yourself
+at least one eval - you decide what and how to implement it
+Some tool calls give thousands of lines response. Give users a way to access the entire dataset - use some sort of interactive ui component to give them access to it
+persistent conversations - access previous conversation history and continue. Users tend to like excel
+Make sure that every clinical trial returned is cross referenced against the pipeline page of the company (and cited in the response when done so) eg https://www.novonordisk.com/science-and-technology/r-d-pipeline.html
+Optional - if I refresh browser while the agent is thinking, my conversation should continue.
+ 
+Submission/Technical requirements:
+code is version controlled somewhere
+do not mind which (if any) llm/agent sdk you use
+do not mind which llm provider you use
+some sort of sensible persistence layer
+preference for python / fastapi backend
+auditable train of thought
+ 
+How it will be evaluated:
+You send either a repo with instructions on how to run it locally or a link to a running website with the app deployed
+I will look through it and book a follow up call
+ 
+Make sure it can answer these questions (I will ask it more):
+What trials are currently recruiting for obesity?
+Tell me more about [NCT ID from result] — who is the sponsor and what's the primary endpoint?
+Are there any trials comparing semaglutide to placebo for obesity?
+What are Novo Nordisk's current active trials for obesity?
+

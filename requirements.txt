@@ -1,0 +1,10 @@
+anthropic
+requests
+python-dotenv
+sqlalchemy
+fastapi
+uvicorn[standard]
+streamlit
+pandas
+openpyxl
+beautifulsoup4
