@@ -17,12 +17,15 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 
+import os
 import anthropic
 from dotenv import dotenv_values
 
 from agent import run_agent
 
-_client = anthropic.Anthropic(api_key=dotenv_values(".env").get("API_KEY"))
+_client = anthropic.Anthropic(
+    api_key=os.environ.get("API_KEY") or dotenv_values(".env").get("API_KEY")
+)
 
 JUDGE_MODEL = "claude-sonnet-4-6"
 

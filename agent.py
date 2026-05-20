@@ -11,6 +11,7 @@ Yields a stream of strings. Two kinds:
 """
 
 import json
+import os
 import time
 import anthropic
 from dotenv import dotenv_values
@@ -21,7 +22,9 @@ MODEL = "claude-sonnet-4-6"
 MAX_TOOL_RETRIES = 2
 RETRY_DELAY = 1.5
 
-_anthropic = anthropic.Anthropic(api_key=dotenv_values(".env").get("API_KEY"))
+_anthropic = anthropic.Anthropic(
+    api_key=os.environ.get("API_KEY") or dotenv_values(".env").get("API_KEY")
+)
 _trials = ClinicalTrialsClient()
 
 
