@@ -1,3 +1,13 @@
+---
+title: Clinical Trials Assistant
+emoji: 🔬
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Clinical Trials Assistant
 
 A conversational agent that answers natural-language questions about clinical trials, backed by the live [ClinicalTrials.gov API v2](https://clinicaltrials.gov/data-api/api).
