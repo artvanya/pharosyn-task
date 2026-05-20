@@ -6,6 +6,7 @@ so a browser refresh restores the same conversation from the DB.
 """
 
 import json
+import time
 import uuid
 import requests
 import pandas as pd
@@ -254,23 +255,23 @@ if st.session_state.answer_pending:
             "It continues running in the background — reload to see the answer.",
             icon="⏳",
         )
-        if st.button("Reload now"):
-            # Re-fetch from DB; if the answer is ready it will appear
-            existing = api("get", f"/api/conversations/{st.session_state.conv_id}/messages")
-            if existing:
-                st.session_state.messages = [
-                    {"role": m["role"], "content": m["content"]}
-                    for m in existing
-                    if m["role"] in ("user", "assistant")
-                ]
-                st.session_state.tool_traces, st.session_state.full_data = (
-                    extract_tool_traces(existing)
-                )
-                visible = [m for m in existing if m["role"] in ("user", "assistant")]
-                st.session_state.answer_pending = (
-                    bool(visible) and visible[-1]["role"] == "user"
-                )
-            st.rerun()
+        # Auto-poll every 4 s until the background thread saves the answer
+        time.sleep(4)
+        existing = api("get", f"/api/conversations/{st.session_state.conv_id}/messages")
+        if existing:
+            st.session_state.messages = [
+                {"role": m["role"], "content": m["content"]}
+                for m in existing
+                if m["role"] in ("user", "assistant")
+            ]
+            st.session_state.tool_traces, st.session_state.full_data = (
+                extract_tool_traces(existing)
+            )
+            visible = [m for m in existing if m["role"] in ("user", "assistant")]
+            st.session_state.answer_pending = (
+                bool(visible) and visible[-1]["role"] == "user"
+            )
+        st.rerun()
 
 # Chat input
 if user_input := st.chat_input("Ask about clinical trials…"):
@@ -366,6 +367,14 @@ if user_input := st.chat_input("Ask about clinical trials…"):
         # Finalise display
         tool_status.empty()
         response_placeholder.markdown(text_so_far)
+
+        # If the proxy buffered everything and delivered nothing, fall back to
+        # polling the DB (answer_pending auto-refreshes every 4 s).
+        if not text_so_far:
+            st.session_state.answer_pending = True
+            response_placeholder.info("⏳ Generating response — updating automatically…")
+            st.rerun()
+
         st.session_state.answer_pending = False
 
         msg_index = len(st.session_state.messages)
