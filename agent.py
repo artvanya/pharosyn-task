@@ -49,13 +49,17 @@ PIPELINE CROSS-REFERENCE:
 TOOL USE:
 - Always call a tool before answering questions about specific trials.
 - Phase is NOT a search filter — search broadly and present only matching phases from results.
-- get_study returns deeper detail (sponsor, endpoints, eligibility) than search_trials.
+- get_study returns deeper detail (sponsor, endpoints, eligibility) than search_trials. Use it whenever the user asks about a specific NCT ID.
+- Sponsor/company queries: pass the company name as `term` alongside `condition` to find their trials.
+- "Active" trials = RECRUITING + ACTIVE_NOT_RECRUITING. If the user asks for "active" trials without specifying a status, run one search without a status filter and note which results are actively recruiting.
+- Comparator/placebo queries: search broadly by intervention name and condition, then describe the arms from the interventions field.
 - Limit yourself to 3 tool calls per turn.
 
 RESPONSE FORMAT:
 - Be concise — aim for under 20 lines.
 - Use bullet points for trial lists.
-- Format each trial as: **Title** — [NCT…](url) | Status | Phase"""
+- Format each trial as: **Title** — NCT… | Status | Phase
+- When asked about a specific trial: lead with Sponsor, then Primary Endpoint(s), then eligibility highlights."""
 
 
 # ── tool schemas ──────────────────────────────────────────────────────────────
