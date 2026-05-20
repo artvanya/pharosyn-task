@@ -94,8 +94,9 @@ class ClinicalTrialsClient:
         lead_sponsor = sponsor_mod.get("leadSponsor", {}).get("name")
         collaborators = [c.get("name") for c in sponsor_mod.get("collaborators", []) if c.get("name")]
 
+        nct_id = id_mod.get("nctId")
         return {
-            "nct_id": id_mod.get("nctId"),
+            "nct_id": nct_id,
             "title": id_mod.get("briefTitle"),
             "status": status_mod.get("overallStatus"),
             "phase": design_mod.get("phases", []),
@@ -108,6 +109,7 @@ class ClinicalTrialsClient:
             "min_age": eligibility_mod.get("minimumAge"),
             "max_age": eligibility_mod.get("maximumAge"),
             "sex": eligibility_mod.get("sex"),
+            "ctgov_url": f"https://clinicaltrials.gov/study/{nct_id}" if nct_id else None,
         }
 
     def normalize_search_results(self, raw: dict) -> dict:

@@ -31,14 +31,19 @@ SYSTEM_PROMPT = """You are a clinical trials assistant powered by ClinicalTrials
 
 DATA INTEGRITY — ethical requirement:
 - Never invent, assume, or extrapolate any information not returned by a tool.
-- Every trial you mention MUST include its NCT ID so the user can independently verify it.
+- Every trial you mention MUST cite its NCT ID as a clickable link:
+  [NCT123456](https://clinicaltrials.gov/study/NCT123456)
+  Use the ctgov_url field from tool results for the URL.
 - If a field is null or missing, say "not specified" — do not fill it in.
 - If no results are found, say so clearly and suggest a refined search.
 
 PIPELINE CROSS-REFERENCE:
-- When you identify the lead sponsor of a trial, call check_company_pipeline for that company.
-- In your response, state whether the drug/intervention was found on the company pipeline page
-  and cite the pipeline URL when a match is confirmed.
+- Pipeline verification is automatic — each study result already contains pipeline_match
+  (list of matched interventions, or null if sponsor is not a tracked company) and pipeline_url.
+- Always report pipeline status for each trial:
+  • pipeline_match is a non-empty list → "✓ on [Company] pipeline: <matches> ([source](<pipeline_url>))"
+  • pipeline_match is an empty list    → "✗ not found on [Company] pipeline"
+  • pipeline_match is null             → omit pipeline mention for that trial
 
 TOOL USE:
 - Always call a tool before answering questions about specific trials.
@@ -49,7 +54,7 @@ TOOL USE:
 RESPONSE FORMAT:
 - Be concise — aim for under 20 lines.
 - Use bullet points for trial lists.
-- Always end trial entries with (NCT ID) so they are easy to scan."""
+- Format each trial as: **Title** — [NCT…](url) | Status | Phase"""
 
 
 # ── tool schemas ──────────────────────────────────────────────────────────────
@@ -122,6 +127,25 @@ TOOLS = [
 ]
 
 
+# ── pipeline annotation ───────────────────────────────────────────────────────
+
+def _annotate_pipeline(study: dict) -> None:
+    """In-place: add pipeline_match and pipeline_url to a normalized study dict."""
+    from pipeline import fetch_pipeline, PIPELINE_URLS
+    sponsor = (study.get("lead_sponsor") or "").lower().strip()
+    if sponsor not in PIPELINE_URLS:
+        study["pipeline_match"] = None
+        study["pipeline_url"] = None
+        return
+    pipeline = fetch_pipeline(sponsor)
+    matches = [
+        iv for iv in study.get("interventions", [])
+        if any(iv.lower() in p or p in iv.lower() for p in pipeline)
+    ]
+    study["pipeline_match"] = matches
+    study["pipeline_url"] = PIPELINE_URLS[sponsor]
+
+
 # ── tool execution ────────────────────────────────────────────────────────────
 
 def _run_tool(name: str, tool_input: dict) -> tuple[dict, str | None]:
@@ -139,13 +163,18 @@ def _run_tool(name: str, tool_input: dict) -> tuple[dict, str | None]:
                 )
                 if "error" in raw:
                     return {}, raw["error"]
-                return _trials.normalize_search_results(raw), None
+                result = _trials.normalize_search_results(raw)
+                for study in result.get("studies", []):
+                    _annotate_pipeline(study)
+                return result, None
 
             elif name == "get_study":
                 raw = _trials.get_study(tool_input["nct_id"])
                 if "error" in raw:
                     return {}, raw["error"]
-                return _trials.normalize_study(raw), None
+                study = _trials.normalize_study(raw)
+                _annotate_pipeline(study)
+                return study, None
 
             elif name == "check_company_pipeline":
                 from pipeline import fetch_pipeline, PIPELINE_URLS
