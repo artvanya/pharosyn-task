@@ -312,6 +312,9 @@ if user_input := st.chat_input("Ask about clinical trials…"):
                     except (json.JSONDecodeError, ValueError):
                         continue
 
+                    if not isinstance(payload, str):
+                        continue
+
                     if payload.startswith("\x00"):
                         # Sentinel
                         sentinel = json.loads(payload[1:])
