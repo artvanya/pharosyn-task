@@ -33,8 +33,9 @@ HEADERS = {
 
 # Require ≥4 chars before the INN suffix so generic words ("kinase", "peptide") don't match
 _DRUG_SUFFIX = re.compile(
-    r"\b\w{4,}(?:mab|nib|tinib|zumab|glutide|gliptin|flozin|parin|mycin|cillin"
-    r"|ikimab|ibart|ekimab|gamtide|setron|lukast|sartan|dipine|vastatin|oxetine)\b",
+    r"\b\w{4,}(?:mab|nib|tinib|zumab|glutide|lintide|rutide|gliptin|flozin|parin"
+    r"|mycin|cillin|ikimab|ibart|ekimab|gamtide|setron|lukast|sartan|dipine"
+    r"|vastatin|oxetine|parib|ciclib|rafenib|metinib)\b",
     re.I,
 )
 _DRUG_CODE = re.compile(r"\b[A-Z]{2,5}[-_]?\d{3,6}\b")
