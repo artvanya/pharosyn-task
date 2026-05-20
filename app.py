@@ -246,15 +246,9 @@ for i, msg in enumerate(st.session_state.messages):
                                            file_name="trials.csv", mime="text/csv",
                                            key=f"csv_{i}")
 
-# If we reloaded while the agent was thinking, show a notice and a reload button.
-# The agent keeps running server-side; once done it saves to DB.
 if st.session_state.answer_pending:
     with st.chat_message("assistant"):
-        st.info(
-            "The agent was still thinking when the page reloaded. "
-            "It continues running in the background — reload to see the answer.",
-            icon="⏳",
-        )
+        st.info("Generating response…", icon="⏳")
         # Auto-poll every 4 s until the background thread saves the answer
         time.sleep(4)
         existing = api("get", f"/api/conversations/{st.session_state.conv_id}/messages")
