@@ -14,6 +14,31 @@ import streamlit as st
 
 API = "http://localhost:8000"
 
+
+@st.cache_resource
+def _ensure_api_running():
+    """
+    Start FastAPI inline if it isn't already running.
+    No-op on Railway/Render/local where the API runs as a separate process.
+    Needed for single-process hosts like Hugging Face Spaces.
+    """
+    for _ in range(3):
+        try:
+            requests.get(f"{API}/api/conversations", timeout=1)
+            return  # already up
+        except Exception:
+            time.sleep(0.5)
+    import threading
+    import uvicorn
+    threading.Thread(
+        target=lambda: uvicorn.run("api:app", host="127.0.0.1", port=8000, log_level="warning"),
+        daemon=True,
+    ).start()
+    time.sleep(2)  # wait for bind
+
+
+_ensure_api_running()
+
 st.set_page_config(
     page_title="Clinical Trials Assistant",
     page_icon="🔬",
@@ -287,83 +312,81 @@ if user_input := st.chat_input("Ask about clinical trials…"):
         collected_studies = []
         live_traces: list = []
 
-        try:
-            with requests.post(
-                f"{API}/api/conversations/{st.session_state.conv_id}/stream",
-                json={"message": user_input},
-                stream=True,
-                timeout=120,
-            ) as r:
-                r.raise_for_status()
-                for raw_line in r.iter_lines():
-                    if not raw_line:
-                        continue
-                    line = raw_line.decode("utf-8")
-                    if not line.startswith("data: "):
-                        continue
-                    # Every SSE payload is JSON-encoded to survive newlines.
-                    try:
-                        payload = json.loads(line[6:])
-                    except (json.JSONDecodeError, ValueError):
-                        continue
+        # st.spinner flushes to the browser immediately before the blocking SSE call,
+        # unlike placeholder.markdown() which is batched until the script run ends.
+        with st.spinner("Thinking…"):
+            try:
+                with requests.post(
+                    f"{API}/api/conversations/{st.session_state.conv_id}/stream",
+                    json={"message": user_input},
+                    stream=True,
+                    timeout=120,
+                ) as r:
+                    r.raise_for_status()
+                    for raw_line in r.iter_lines():
+                        if not raw_line:
+                            continue
+                        line = raw_line.decode("utf-8")
+                        if not line.startswith("data: "):
+                            continue
+                        try:
+                            payload = json.loads(line[6:])
+                        except (json.JSONDecodeError, ValueError):
+                            continue
 
-                    if not isinstance(payload, str):
-                        continue
+                        if not isinstance(payload, str):
+                            continue
 
-                    if payload.startswith("\x00"):
-                        # Sentinel
-                        sentinel = json.loads(payload[1:])
-                        stype = sentinel["type"]
+                        if payload.startswith("\x00"):
+                            sentinel = json.loads(payload[1:])
+                            stype = sentinel["type"]
 
-                        if stype == "tool_call":
-                            tool_status.info(
-                                f"🔍 Calling **{sentinel['name']}**…",
-                                icon="⏳"
-                            )
-                            live_traces.append({
-                                "type": "tool_call",
-                                "name": sentinel["name"],
-                                "input": sentinel.get("input", {}),
-                            })
-
-                        elif stype == "tool_result":
-                            tool_status.empty()
-                            data = sentinel.get("data", {})
-                            live_traces.append({
-                                "type": "tool_result",
-                                "name": sentinel["name"],
-                                "data": data,
-                                "error": sentinel.get("error"),
-                            })
-                            if sentinel.get("error"):
-                                st.warning(
-                                    f"⚠ Tool **{sentinel['name']}** failed: {sentinel['error']}",
+                            if stype == "tool_call":
+                                tool_status.info(
+                                    f"🔍 Calling **{sentinel['name']}**…",
+                                    icon="⏳"
                                 )
-                            else:
-                                if "studies" in data:
-                                    collected_studies.extend(data["studies"])
+                                live_traces.append({
+                                    "type": "tool_call",
+                                    "name": sentinel["name"],
+                                    "input": sentinel.get("input", {}),
+                                })
 
-                        elif stype == "error":
-                            st.error(f"Error: {sentinel['message']}")
+                            elif stype == "tool_result":
+                                tool_status.empty()
+                                data = sentinel.get("data", {})
+                                live_traces.append({
+                                    "type": "tool_result",
+                                    "name": sentinel["name"],
+                                    "data": data,
+                                    "error": sentinel.get("error"),
+                                })
+                                if sentinel.get("error"):
+                                    st.warning(
+                                        f"⚠ Tool **{sentinel['name']}** failed: {sentinel['error']}",
+                                    )
+                                else:
+                                    if "studies" in data:
+                                        collected_studies.extend(data["studies"])
 
-                    else:
-                        # Plain text token
-                        text_so_far += payload
-                        response_placeholder.markdown(text_so_far + "▌")
+                            elif stype == "error":
+                                st.error(f"Error: {sentinel['message']}")
 
-        except requests.exceptions.ConnectionError:
-            st.error("Cannot reach the backend. Start it with: `uvicorn api:app --port 8000`")
-            st.stop()
-        except Exception as e:
-            st.error(f"Streaming error: {e}")
-            st.stop()
+                        else:
+                            text_so_far += payload
+                            response_placeholder.markdown(text_so_far + "▌")
 
-        # Finalise display
+            except requests.exceptions.ConnectionError:
+                st.error("Cannot reach the backend. Start it with: `uvicorn api:app --port 8000`")
+                st.stop()
+            except Exception as e:
+                st.error(f"Streaming error: {e}")
+                st.stop()
+
+        # Spinner exits here — finalise display
         tool_status.empty()
         response_placeholder.markdown(text_so_far)
 
-        # If the proxy buffered everything and delivered nothing, fall back to
-        # polling the DB (answer_pending auto-refreshes every 4 s).
         if not text_so_far:
             st.session_state.answer_pending = True
             response_placeholder.info("⏳ Generating response — updating automatically…")
