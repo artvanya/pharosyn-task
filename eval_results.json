@@ -1,0 +1,130 @@
+{
+  "run_at": "2026-05-19T14:21:45.355392",
+  "overall": "11/13",
+  "cases": [
+    {
+      "test": "obesity_recruiting",
+      "question": "What trials are currently recruiting for obesity?",
+      "status": "PARTIAL",
+      "passed": 2,
+      "total": 3,
+      "tools_called": [
+        "search_trials"
+      ],
+      "elapsed_s": 17.1,
+      "response_preview": "Here are **10 currently recruiting trials** for obesity:\n\n1. **Effects of Gallotannins on Gut Microbiome & Inflammatory Markers in Obese Individuals**\n   - Intervention: GT-rich mango, *L. pentosus* probiotic | Phase: N/A | Ages: 18\u201355\n   - Sponsor: Prairie View A&M University\n   - (NCT07505212)\n\n2.",
+      "rubric_detail": [
+        {
+          "item": "Response contains at least one NCT ID (pattern NCT followed by digits)",
+          "pass": true,
+          "reason": "The response contains multiple NCT IDs following the pattern 'NCT' followed by digits, such as NCT07505212, NCT05414409, NCT06380426, etc."
+        },
+        {
+          "item": "At least one trial has status RECRUITING or 'currently recruiting' mentioned",
+          "pass": true,
+          "reason": "The response explicitly states 'currently recruiting trials' in the introduction and implies all listed trials are actively recruiting."
+        },
+        {
+          "item": "Response does not invent data \u2014 only mentions trials with real NCT IDs",
+          "pass": false,
+          "reason": "Several NCT IDs in the response appear to be fabricated. NCT IDs with numbers in the 07XXXXXX range (e.g., NCT07505212, NCT07470749, NCT07407348, NCT07270068, NCT07126587, NCT07081152) are suspicious because ClinicalTrials.gov NCT IDs were well below 07000000 as of the knowledge cutoff. These are very likely invented identifiers, violating the requirement to only mention trials with real NCT IDs."
+        }
+      ]
+    },
+    {
+      "test": "trial_detail",
+      "question": "Tell me more about NCT06973720 \u2014 who is the sponsor and what's the primary endpoint?",
+      "status": "PASS",
+      "passed": 3,
+      "total": 3,
+      "tools_called": [
+        "get_study",
+        "check_company_pipeline"
+      ],
+      "elapsed_s": 11.3,
+      "response_preview": "Here's a summary of **NCT06973720**:\n\n- **Title:** A Phase 2b Study to Evaluate the Efficacy and Safety of Once-Monthly MET097 in Adults With Obesity or Overweight\n- **Status:** Active, Not Recruiting\n- **Lead Sponsor:** Metsera, a wholly owned subsidiary of Pfizer\n- **Intervention:** MET097 (once-m",
+      "rubric_detail": [
+        {
+          "item": "Response mentions the sponsor or lead organisation of NCT06973720",
+          "pass": true,
+          "reason": "The response explicitly mentions 'Metsera, a wholly owned subsidiary of Pfizer' as the lead sponsor."
+        },
+        {
+          "item": "Response mentions at least one primary endpoint or outcome measure",
+          "pass": true,
+          "reason": "The response clearly states the primary endpoint: 'Percent change from baseline in body weight at Week 28'."
+        },
+        {
+          "item": "Response cites NCT06973720 explicitly",
+          "pass": true,
+          "reason": "The response explicitly cites 'NCT06973720' in the opening line."
+        }
+      ]
+    },
+    {
+      "test": "semaglutide_placebo",
+      "question": "Are there any trials comparing semaglutide to placebo for obesity?",
+      "status": "PARTIAL",
+      "passed": 3,
+      "total": 4,
+      "tools_called": [
+        "search_trials",
+        "check_company_pipeline"
+      ],
+      "elapsed_s": 17.8,
+      "response_preview": "Here are the most relevant trials comparing **semaglutide vs. placebo** for obesity:\n\n---\n\n### \u2705 Most Directly Relevant (Semaglutide vs. Placebo, Obesity Primary Focus)\n\n- **Semaglutide 2.4 mg vs. Placebo in Obesity + Prediabetes** *(Phase 3, Completed)*\n  - Primary endpoints: % change in body weigh",
+      "rubric_detail": [
+        {
+          "item": "Response includes at least one NCT ID",
+          "pass": true,
+          "reason": "The response includes multiple NCT IDs (e.g., NCT05040971, NCT03842202, NCT04019197, NCT06299098, NCT07411378, NCT07253285)."
+        },
+        {
+          "item": "Response mentions semaglutide",
+          "pass": true,
+          "reason": "Semaglutide is prominently mentioned throughout the response as the intervention of interest."
+        },
+        {
+          "item": "Response mentions placebo or comparator arm",
+          "pass": true,
+          "reason": "Placebo comparator arms are explicitly mentioned for all listed trials."
+        },
+        {
+          "item": "Response does not fabricate trial details",
+          "pass": false,
+          "reason": "Some NCT IDs appear suspicious or potentially fabricated. For example, NCT07411378 and NCT07253285 use '07' prefixes which would indicate registration in 2027, which is in the future and implausible. This raises significant concerns about fabricated trial details."
+        }
+      ]
+    },
+    {
+      "test": "novo_nordisk_obesity",
+      "question": "What are Novo Nordisk's current active trials for obesity?",
+      "status": "PASS",
+      "passed": 3,
+      "total": 3,
+      "tools_called": [
+        "search_trials",
+        "check_company_pipeline"
+      ],
+      "elapsed_s": 19.5,
+      "response_preview": "Here are **Novo Nordisk's currently recruiting obesity trials** on ClinicalTrials.gov:\n\n---\n\n### \ud83d\udd2c Novo Nordisk as Lead Sponsor\n\n- **CagriSema & Cagrilintide in Children/Adolescents (Phase 3)** \u2014 Weight reduction in youth aged 8\u201318 with overweight/obesity. (NCT07253285)\n- **CagriSema Metabolism vs. ",
+      "rubric_detail": [
+        {
+          "item": "Response mentions Novo Nordisk as a sponsor",
+          "pass": true,
+          "reason": "The response explicitly mentions Novo Nordisk as a lead sponsor and also as a collaborator, with a dedicated section for each role."
+        },
+        {
+          "item": "Response includes at least one NCT ID",
+          "pass": true,
+          "reason": "The response includes multiple NCT IDs, such as NCT07253285, NCT07184086, NCT06380426, and others."
+        },
+        {
+          "item": "Response describes the trial status (recruiting, active, etc.)",
+          "pass": true,
+          "reason": "The response describes the trial status by labeling them as 'currently recruiting' in the opening line and uses terms like 'active development' throughout."
+        }
+      ]
+    }
+  ]
+}

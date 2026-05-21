@@ -7,13 +7,14 @@ GET  /api/conversations/{id}/messages   — full message history for a conversat
 GET  /api/conversations/{id}/export     — download conversation as Excel
 POST /api/conversations/{id}/stream     — SSE stream for a chat turn
 
-The SSE stream sends lines of text.  Two formats:
-  data: <text chunk>\n\n          — raw assistant token(s)
-  data: \x00{...json...}\n\n      — sentinel (tool_call / tool_result / done / error)
+The agent runs in a background thread so it completes even if the browser
+disconnects mid-stream.  On reload the completed answer is waiting in the DB.
 """
 
 import io
 import json
+import queue
+import threading
 import uuid
 
 import pandas as pd
@@ -33,6 +34,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+_DONE = object()   # sentinel to signal end-of-stream from background thread
 
 
 # ── request / response models ─────────────────────────────────────────────────
@@ -100,25 +103,28 @@ def chat_stream(conv_id: str, req: ChatRequest):
     if not db.get_conversation(conv_id):
         raise HTTPException(404, "Conversation not found")
 
-    def event_generator():
-        # Persist user message
-        db.add_message(conv_id, "user", req.message)
+    # Persist user message and snapshot history before the thread starts
+    db.add_message(conv_id, "user", req.message)
+    history = [
+        {"role": m["role"], "content": m["content"]}
+        for m in db.get_messages(conv_id)
+        if m["role"] in ("user", "assistant")
+    ][:-1]   # exclude the message we just added; agent adds it itself
 
-        # Build plain-text history for the agent
-        history = [
-            {"role": m["role"], "content": m["content"]}
-            for m in db.get_messages(conv_id)
-            if m["role"] in ("user", "assistant")
-        ]
-        # Remove the message we just added (agent adds it itself)
-        history = history[:-1]
+    chunk_queue: queue.Queue = queue.Queue()
 
-        full_response = []
-
+    def _agent_thread():
+        """
+        Runs the agent to completion regardless of whether the SSE client
+        is still connected.  All DB writes happen here so nothing is lost
+        on browser disconnect.
+        """
+        full_response: list[str] = []
         try:
             for chunk in run_agent(req.message, history):
+                chunk_queue.put(chunk)
+
                 if chunk.startswith("\x00"):
-                    # Sentinel — parse and persist tool traces, then forward
                     sentinel = json.loads(chunk[1:])
                     if sentinel["type"] == "tool_call":
                         db.add_message(conv_id, "tool_call",
@@ -129,26 +135,47 @@ def chat_stream(conv_id: str, req: ChatRequest):
                                        json.dumps({"data": sentinel["data"],
                                                    "error": sentinel["error"]}),
                                        tool_name=sentinel["name"])
-                    yield f"data: {chunk}\n\n"
                 else:
                     full_response.append(chunk)
-                    yield f"data: {chunk}\n\n"
 
         except Exception as exc:
-            error_sentinel = "\x00" + json.dumps({"type": "error", "message": str(exc)}) + "\n"
-            yield f"data: {error_sentinel}\n\n"
+            chunk_queue.put(
+                "\x00" + json.dumps({"type": "error", "message": str(exc)}) + "\n"
+            )
+        finally:
+            # Persist completed (or partial) assistant text to DB.
+            # This runs even if the SSE client already disconnected.
+            if full_response:
+                assistant_text = "".join(full_response)
+                db.add_message(conv_id, "assistant", assistant_text)
+                all_msgs = db.get_messages(conv_id)
+                if sum(1 for m in all_msgs if m["role"] == "user") == 1:
+                    title = req.message[:60] + ("…" if len(req.message) > 60 else "")
+                    db.update_conversation_title(conv_id, title)
+            chunk_queue.put(_DONE)
 
-        # Persist complete assistant response
-        if full_response:
-            assistant_text = "".join(full_response)
-            db.add_message(conv_id, "assistant", assistant_text)
-            # Auto-title conversation from first user message
-            messages = db.get_messages(conv_id)
-            user_msgs = [m for m in messages if m["role"] == "user"]
-            if len(user_msgs) == 1:
-                title = req.message[:60] + ("…" if len(req.message) > 60 else "")
-                db.update_conversation_title(conv_id, title)
+    thread = threading.Thread(target=_agent_thread, daemon=True)
+    thread.start()
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream",
-                             headers={"Cache-Control": "no-cache",
-                                      "X-Accel-Buffering": "no"})
+    def event_generator():
+        """
+        Reads chunks from the queue and forwards them to the SSE client.
+        If the client disconnects (GeneratorExit), we just stop reading —
+        the background thread keeps running and saves to DB on its own.
+        """
+        while True:
+            try:
+                chunk = chunk_queue.get(timeout=120)
+            except queue.Empty:
+                break
+            if chunk is _DONE:
+                break
+            # JSON-encode so newlines inside chunks are escaped (\n → \\n)
+            # and iter_lines() on the client doesn't split mid-chunk.
+            yield f"data: {json.dumps(chunk)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
