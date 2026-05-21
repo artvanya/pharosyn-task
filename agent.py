@@ -58,7 +58,7 @@ TOOL USE:
 RESPONSE FORMAT:
 - Be concise — aim for under 20 lines.
 - Use bullet points for trial lists.
-- Format each trial as: **Title** — NCT… | Status | Phase
+- Format each trial as: **Title** — [NCT…](url) | Status | Phase
 - When asked about a specific trial: lead with Sponsor, then Primary Endpoint(s), then eligibility highlights."""
 
 
