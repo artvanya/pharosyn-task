@@ -244,13 +244,6 @@ with st.sidebar:
 
 st.title("Clinical Trials Assistant")
 
-# If no conversation yet, create one silently
-if not st.session_state.conv_id:
-    conv_id = create_conversation()
-    if conv_id:
-        st.session_state.conv_id = conv_id
-        st.query_params["conv"] = conv_id
-
 # Render history
 for i, msg in enumerate(st.session_state.messages):
     with st.chat_message(msg["role"]):
@@ -295,8 +288,12 @@ if st.session_state.answer_pending:
 # Chat input
 if user_input := st.chat_input("Ask about clinical trials…"):
     if not st.session_state.conv_id:
-        st.error("Could not connect to backend. Is the FastAPI server running?")
-        st.stop()
+        conv_id = create_conversation()
+        if not conv_id:
+            st.error("Could not connect to backend. Is the FastAPI server running?")
+            st.stop()
+        st.session_state.conv_id = conv_id
+        st.query_params["conv"] = conv_id
 
     # Show user message immediately
     st.session_state.messages.append({"role": "user", "content": user_input})
